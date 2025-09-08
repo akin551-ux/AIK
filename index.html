@@ -182,6 +182,17 @@
 
   // --- Durum ---
   const state = { scores: {}, meta: { ogrenci:"", degerlendiren:"" } };
+  const AUTO_KEY = 'noks_autosave';
+  try {
+    const saved = JSON.parse(localStorage.getItem(AUTO_KEY) || 'null');
+    if (saved) {
+      state.meta = saved.meta || state.meta;
+      state.scores = saved.scores || state.scores;
+    }
+  } catch (err) { console.warn('Autosave yüklenemedi', err); }
+  function autoSave(){
+    localStorage.setItem(AUTO_KEY, JSON.stringify({meta: state.meta, scores: state.scores}));
+  }
 
   // --- Yardımcılar ---
   const el = (tag, attrs={}, children=[]) => {
@@ -253,6 +264,7 @@
     });
     document.getElementById('overall').textContent = overallTotal();
     document.querySelectorAll('[id^=tot_]').forEach(t=>t.textContent = '0 puan');
+    autoSave();
   }
 
   // --- Arayüz Kurulumu ---
@@ -263,11 +275,11 @@
     el('div',{class:'grid'},[
       el('div',{},[
         el('label',{class:'small'},['Öğrenci']),
-        el('input',{type:'text',placeholder:'Ad Soyad',id:'ogrenci',oninput:e=> state.meta.ogrenci=e.target.value})
+        el('input',{type:'text',placeholder:'Ad Soyad',id:'ogrenci',value:state.meta.ogrenci||'',oninput:e=>{ state.meta.ogrenci=e.target.value; autoSave(); }})
       ]),
       el('div',{},[
         el('label',{class:'small'},['Değerlendiren']),
-        el('input',{type:'text',placeholder:'Ad Soyad',id:'degerlendiren',oninput:e=> state.meta.degerlendiren=e.target.value})
+        el('input',{type:'text',placeholder:'Ad Soyad',id:'degerlendiren',value:state.meta.degerlendiren||'',oninput:e=>{ state.meta.degerlendiren=e.target.value; autoSave(); }})
       ]),
     ]),
     el('div',{class:'footer'},[
@@ -302,6 +314,10 @@
         const uniqueVals = [...new Set(row.options)];
         uniqueVals.forEach(v=>{
           const btn = el('button',{type:'button', class:'chip'+(v<0?' neg':''), 'data-key':row.key, 'data-val':String(v), 'aria-pressed':'false'},[String(v)]);
+          if (state.scores[row.key] === Number(v)){
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed','true');
+          }
           btn.addEventListener('click',()=>{
             group.querySelectorAll('.chip').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
             btn.classList.add('active');
@@ -309,6 +325,7 @@
             state.scores[row.key] = Number(v);
             document.getElementById('tot_'+section.key).textContent = sectionTotal(section) + ' puan';
             document.getElementById('overall').textContent = overallTotal();
+            autoSave();
           });
           group.appendChild(btn);
         });
@@ -319,6 +336,7 @@
     });
 
     app.appendChild(card);
+    document.getElementById('tot_'+section.key).textContent = sectionTotal(section) + ' puan';
   });
 
   // Başlangıç: toplamlar
